@@ -24,3 +24,7 @@ Following solution from: https://github.com/rusty1s/pytorch_scatter/issues/241
 7. python -m pip --no-cache-dir  install  torch-sparse -f https://data.pyg.org/whl/torch-1.11.0+${cpu}.html
 8. python -m pip --no-cache-dir  install  torch-geometric
 9. pip install -r requirements.txt
+
+### Do the following in command line
+Because for splitting the data you cannot do it with MPS (MAC GPU), so this sets the environmet variable to say fall back to the CPU if the GPU methods are not implemented yet . Also add the .env file. 
+export PYTORCH_ENABLE_MPS_FALLBACK=1
