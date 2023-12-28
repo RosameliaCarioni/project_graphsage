@@ -80,3 +80,17 @@ class GraphSAGE_local(torch.nn.Module):
         f1_macro = f1_score(y, y_prediction, average = 'macro')
         f1_micro =  f1_score(y, y_prediction, average = 'micro')
         return acc, f1_macro, f1_micro
+    
+
+    @torch.no_grad()
+    def test_kfold(self, data, mask_test):
+        self.eval()
+        out = self(data.x, data.edge_index)
+
+        y = data.y[mask_test]
+        y_prediction = out.argmax(dim = 1)[mask_test]
+
+        acc = accuracy(y_prediction, y)
+        f1_macro = f1_score(y, y_prediction, average = 'macro')
+        f1_micro =  f1_score(y, y_prediction, average = 'micro')
+        return acc, f1_macro, f1_micro
