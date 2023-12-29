@@ -1,2 +1,4 @@
 raw
 processed
+__pycache__
+datasets
