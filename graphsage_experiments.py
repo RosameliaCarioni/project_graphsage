@@ -1,13 +1,3 @@
-import time
-
-import torch
-import torch.nn.functional as F
-from sklearn.linear_model import LogisticRegression
-from torch_geometric.nn import GraphSAGE
-from torch_geometric.loader import LinkNeighborLoader
-
-from sklearn.model_selection import StratifiedKFold, cross_validate
-
 # This work is inspired/based in the following work: 
 
 # https://github.com/pyg-team/pytorch_geometric/blob/master/examples/ogbn_products_sage.py
@@ -15,6 +5,18 @@ from sklearn.model_selection import StratifiedKFold, cross_validate
 # https://github.com/pyg-team/pytorch_geometric/blob/master/examples/graph_sage_unsup.py
 # https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.SAGEConv.html
 # https://medium.com/@juyi.lin/neighborloader-introduction-ccb870cc7294
+
+
+import time
+
+import torch
+import torch.nn.functional as F
+from sklearn.linear_model import LogisticRegression
+from torch_geometric.nn import GraphSAGE
+from torch_geometric.loader import LinkNeighborLoader
+from sklearn.multiclass import OneVsRestClassifier
+
+from sklearn.model_selection import StratifiedKFold, KFold, cross_validate
 
 def train(model, device, train_loader, optimizer, number_nodes):
     """_summary_
@@ -27,7 +29,7 @@ def train(model, device, train_loader, optimizer, number_nodes):
         number_nodes: _description_
 
     Returns:
-        _type_: _description_
+        average loss 
     """    
     model.train()
     total_loss = 0
@@ -49,17 +51,19 @@ def train(model, device, train_loader, optimizer, number_nodes):
     return total_loss / number_nodes
 
 
+# ---- NODE CLASSIFICATION TASK ----
+
 @torch.no_grad()
-def test_node_classification(embedding_matrix, y):
-    """_summary_
-
+def test_node_classification_one_class(embedding_matrix, y):
+    """ 5-fold classification using one-vs-rest logistic regression
     Args:
-        embedding_matrix: _description_
-        y: _description_
+        embedding_matrix: source embeddings of a graph
+        y: the labels for each node
+        n_folds: number of folds for cross-validation
+    Returns: 
+        accuracy, f1 macro score, f1 micro score
+    """
 
-    Returns:
-        _type_: _description_
-    """    
     model = LogisticRegression(multi_class="ovr")
     kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=123)
     eval_scores = {"acc": "accuracy", "f1_macro": "f1_macro", "f1_micro": "f1_micro"}
@@ -74,6 +78,23 @@ def test_node_classification(embedding_matrix, y):
 
     return acc, f1_macro, f1_micro
 
+@torch.no_grad()
+def test_node_classification(embedding_matrix, y, n_folds=5):
+    """ 5-fold multi-label classification using one-vs-rest logistic regression
+    Args:
+        embedding_matrix: source embeddings of a graph
+        y: the labels for each node
+        n_folds: number of folds for cross-validation
+    Returns: 
+        accuracy, f1 macro score, f1 micro score
+    """
+    model = LogisticRegression()
+    ovr_model = OneVsRestClassifier(model)
+    kf = KFold(n_splits=n_folds, shuffle=True)
+    eval_scores = {'acc': 'accuracy', 'f1_macro': 'f1_macro', 'f1_micro': 'f1_micro'}
+    results = cross_validate(ovr_model, embedding_matrix, y, cv=kf, scoring=eval_scores)
+    acc, f1_macro, f1_micro = results['test_acc'].mean(), results['test_f1_macro'].mean(), results['test_f1_micro'].mean()
+    return acc, f1_macro, f1_micro
 
 @torch.no_grad()
 def test_link_prediction(embedding_matrix, edge_label_index, y):
@@ -173,7 +194,7 @@ def compute_embedding_matrix(
         print('Node classification ')
         print(
             f"Epoch: {epoch:03d}, Accuracy: {acc:.4f}, "
-            f"Total loss: {total_loss:.4f}, f1_macro: {f1_macro:.4f}, f1_micro:{f1_micro:.4f} "
+            f"Total loss: {total_loss:.4f}, f1_macro: {f1_macro:.4f}, f1_micro:{f1_micro:.4f}, time_taken: {time.time() - start}"
         )
 
         # EVALUATE LINK PREDICTION TODO 
