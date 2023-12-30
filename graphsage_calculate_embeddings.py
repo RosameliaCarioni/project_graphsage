@@ -33,6 +33,7 @@ def compute_embedding_matrix(
     aggregator,
     activation_before_normalization,
     bias,
+    project,
     normalize
 ):
     # Sampling from neighbourhood
@@ -62,6 +63,7 @@ def compute_embedding_matrix(
         act_first=activation_before_normalization,
         bias=bias,
         normalize = normalize,
+        project = project
 
     ).to(device)
 
