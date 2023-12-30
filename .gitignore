@@ -2,3 +2,4 @@ raw
 processed
 __pycache__
 datasets
+embeddings

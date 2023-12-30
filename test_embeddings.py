@@ -1,12 +1,3 @@
-# This work is inspired/based in the following work: 
-
-# https://github.com/pyg-team/pytorch_geometric/blob/master/examples/ogbn_products_sage.py
-# https://github.com/PacktPublishing/Hands-On-Graph-Neural-Networks-Using-Python/blob/main/Chapter08/chapter8.ipynb 
-# https://github.com/pyg-team/pytorch_geometric/blob/master/examples/graph_sage_unsup.py
-# https://pytorch-geometric.readthedocs.io/en/latest/generated/torch_geometric.nn.conv.SAGEConv.html
-# https://medium.com/@juyi.lin/neighborloader-introduction-ccb870cc7294
-
-
 import time
 from tqdm import tqdm
 
@@ -14,16 +5,16 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from sklearn.linear_model import LogisticRegression
-from torch_geometric.nn import GraphSAGE
-from torch_geometric.loader import LinkNeighborLoader
-from sklearn.multiclass import OneVsRestClassifier, roc_auc_score
+from sklearn.multiclass import OneVsRestClassifier
 from sklearn.model_selection import StratifiedKFold, KFold, cross_validate, train_test_split
+from sklearn.metrics import roc_auc_score
+from itertools import combinations
 
 
 # ---------------------------------------------- NODE CLASSIFICATION TASK --------------------------------------------
 
 @torch.no_grad()
-def test_node_classification_one_class(embedding_matrix, y):
+def test_node_classification_one_class(embedding_matrix, y, n_folds=5):
     """ 5-fold classification using one-vs-rest logistic regression
     Args:
         embedding_matrix: source embeddings of a graph
@@ -34,7 +25,7 @@ def test_node_classification_one_class(embedding_matrix, y):
     """
 
     model = LogisticRegression(multi_class="ovr")
-    kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=123)
+    kf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=123)
     eval_scores = {"acc": "accuracy", "f1_macro": "f1_macro", "f1_micro": "f1_micro"}
 
     results = cross_validate(model, embedding_matrix, y, cv=kf, scoring=eval_scores)
@@ -53,7 +44,7 @@ def test_node_classification_multi_class(embedding_matrix, y, n_folds=5):
     Args:
         embedding_matrix: source embeddings of a graph
         y: the labels for each node
-        n_folds: number of folds for cross-validation
+        n_folds: number of folds for cross-validation. Defaults to 5
     Returns: 
         accuracy, f1 macro score, f1 micro score
     """
@@ -70,13 +61,22 @@ def test_node_classification_multi_class(embedding_matrix, y, n_folds=5):
 
 @torch.no_grad()
 def test_link_prediction_k_fold_validation(embedding, edges, non_edges, k=5):
+    """5 fold cross validation for link prediction 
+
+    Args:
+        embedding: numpy.ndarray with the embedding representations for each node in graph
+        edges: list of edges containig 2 nodes per entry
+        non_edges: list of edges that don't exist in the graph and could be added
+        k: number of folds in k-fold cross validation.  Defaults to 5.
+
+    Returns:
+        average ROC AUC
+    """
 
    # PREPARE DATA 
     # Extract embeddings for the given edges and non-edges
     emb_edges = np.array([embedding[edge[0]] * embedding[edge[1]] for edge in edges])
     emb_non_edges = np.array([embedding[non_edge[0]] * embedding[non_edge[1]] for non_edge in non_edges])
-
-    print('iteration done')
 
     # Label the edges as 1 and non-edges as 0
     labels = np.concatenate([np.ones(len(edges)), np.zeros(len(non_edges))])
@@ -110,12 +110,20 @@ def test_link_prediction_k_fold_validation(embedding, edges, non_edges, k=5):
     return avg_roc_auc
 
 def test_link_prediction(embedding, edges, non_edges):
-    
+    """Result for link prediction given embedding matrix of nodes 
+
+    Args:
+        embedding: numpy.ndarray with the embedding representations for each node in graph
+        edges: list of edges containig 2 nodes per entry
+        non_edges: list of edges that don't exist in the graph and could be added
+
+    Returns:
+        ROC AUC
+    """
+
     # Extract embeddings for the given edges and non-edges
     emb_edges = np.array([embedding[edge[0]] * embedding[edge[1]] for edge in edges])
     emb_non_edges = np.array([embedding[non_edge[0]] * embedding[non_edge[1]] for non_edge in non_edges])
-
-    print('iteration done')
 
     # Label the edges as 1 and non-edges as 0
     labels = np.concatenate([np.ones(len(edges)), np.zeros(len(non_edges))])
@@ -126,20 +134,26 @@ def test_link_prediction(embedding, edges, non_edges):
     # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, labels, test_size=0.5, random_state=42)
 
-    print('split done')
-
     # Normalize the inner product by the sigmoid function
     inner_product = np.sum(X_test, axis=1)
     normalized_similarity = 1 / (1 + np.exp(-inner_product))
-
-    print('similarities calculated')
 
     # Compute ROC-AUC score
     roc_auc = roc_auc_score(y_test, normalized_similarity)
 
     return roc_auc*100
 
-def get_edges_and_non_edges_as_lists(data): 
+def get_edges_and_non_edges_as_lists(data, directed): 
+    """From a torch_geometric.datasets obtain the list of edges and possible edges that don't exist 
+
+    Args:
+        data: torch_geometric.datasets
+        directed: boolean that says if the graph is directed or not 
+
+    Returns:
+        edges and non_edges in lists of tuples where each element is one node  
+    """
+
     # Get lists of nodes that form an edge
     edge_index = data.edge_index
 
@@ -150,111 +164,18 @@ def get_edges_and_non_edges_as_lists(data):
     all_possible_pairs = set(combinations(range(data.num_nodes), 2))
 
     # Get the unique pairs from edges - in case of undirected graphs 
-    unique_edges = list(set(map(lambda e: tuple(sorted(e)), edges)))
+    if not directed: 
+        unique_edges = list(set(map(lambda e: tuple(sorted(e)), edges)))
 
-    # Substract from all possible pairs, the ones that already exist
-    non_edges = list(all_possible_pairs - set(unique_edges))
-    return edges, non_edges
-
-
-# ---------------------------------------------- EMBEDDING MATRIX  --------------------------------------------
-
-
-def compute_embedding_matrix(
-    data,
-    number_features,
-    number_nodes,
-    batch_size,
-    hidden_layer, 
-    epochs, 
-    neighborhood_1,
-    neighborhood_2,
-    embedding_dimension,
-    learning_rate,
-    dropout_rate,
-    activation_function,
-    aggregator,
-    activation_before_normalization,
-    bias,
-    normalize
-):
-    # Sampling from neighbourhood
-    train_loader = LinkNeighborLoader(
-        data,
-        batch_size=batch_size,
-        shuffle=True,
-        neg_sampling_ratio=0.25,  # generating 50% of negative nodes
-        num_neighbors=[neighborhood_1, neighborhood_2],
-    )
-
-    if torch.backends.mps.is_available() and False:
-        device = torch.device("mps")
-        x = torch.ones(1, device=device)
+    # Set unique_edges based on whether the graph is directed
+    if directed: 
+        # For directed graphs, keep the edge direction
+        edges_exist = list(set(edges))
     else:
-        device = torch.device("cpu")
+        # For undirected graphs, sort the nodes in each edge
+        edges_exist = list(set(map(lambda e: tuple(sorted(e)), edges)))
 
-    # Create model
-    model = GraphSAGE(
-        in_channels=number_features,
-        hidden_channels=hidden_layer,  # TODO: not sure
-        out_channels=embedding_dimension,
-        num_layers=2,
-        aggr=aggregator,
-        act=activation_function,
-        dropout=dropout_rate,
-        act_first=activation_before_normalization,
-        bias=bias,
-        normalize = normalize,
+    # Subtract from all possible pairs, the ones that already exist
+    non_edges = list(all_possible_pairs - set(edges_exist))
 
-    ).to(device)
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-
-    times = []
-
-    for epoch in tqdm(range(epochs + 1), desc='Training Progress'):
-        
-        start = time.time()
-        total_loss = train(model, device, train_loader, optimizer, number_nodes)
-
-        model.eval()
-        embedding_matrix = model(data.x, data.edge_index).to(device)
-
-        print(f"Epoch: {epoch:03d}, Total loss: {total_loss:.4f}, time_taken: {time.time() - start}")
-
-        times.append(time.time() - start)
-    print(f"Median time per epoch: {torch.tensor(times).median():.4f}s")
-
-    return embedding_matrix
-
-def train(model, device, train_loader, optimizer, number_nodes):
-    """_summary_
-
-    Args:
-        model: _description_
-        device: _description_
-        train_loader: _description_
-        optimizer: _description_
-        number_nodes: _description_
-
-    Returns:
-        average loss 
-    """    
-    model.train()
-    total_loss = 0
-    for batch in train_loader:
-        batch = batch.to(device)
-        optimizer.zero_grad()
-
-        h = model(batch.x, batch.edge_index)
-        h_src = h[batch.edge_label_index[0]]
-        h_dst = h[batch.edge_label_index[1]]
-        pred = (h_src * h_dst).sum(dim=-1)
-
-        loss = F.binary_cross_entropy_with_logits(pred, batch.edge_label)
-        loss.backward()
-        optimizer.step()
-
-        total_loss += float(loss) * pred.size(0)
-
-    return total_loss / number_nodes
+    return edges, non_edges
