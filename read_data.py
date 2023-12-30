@@ -5,44 +5,7 @@ import networkx as nx
 from torch_geometric.utils.convert import from_networkx
 import numpy as np
 from sklearn.preprocessing import MultiLabelBinarizer
-import graphsage_experiments
 import torch.nn.functional as F
-
-def add_masks(data, train_size, val_size, test_size):
-    """Add masks to the data object 
-
-    Args:
-        data: torch_geometric.data
-        train_size: ratio 
-        val_size: ratio
-        test_size: ratio
-
-    Returns:
-        train mask, validation mask, test mask 
-    """
-    # Ensure the sizes sum up to the number of nodes
-    assert train_size + val_size + test_size <= data.num_nodes
-
-    # Shuffle node indices
-    node_indices = torch.randperm(data.num_nodes)
-
-    # Split indices for train, val, test
-    train_indices = node_indices[:train_size]
-    val_indices = node_indices[train_size:train_size + val_size]
-    test_indices = node_indices[train_size + val_size:]
-
-    # Initialize masks
-    data.train_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
-    data.val_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
-    data.test_mask = torch.zeros(data.num_nodes, dtype=torch.bool)
-
-    # Assign masks
-    data.train_mask[train_indices] = True
-    data.val_mask[val_indices] = True
-    data.test_mask[test_indices] = True
-
-    return data
-
 
 def read_dataset_arizona_university(nodes_path, edges_path, groups_path, group_edges_path):
     """Read in the data from the csv files and transform it into networkx object 

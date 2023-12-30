@@ -8,8 +8,6 @@
 
 
 import time
-from tqdm import tqdm
-
 
 import torch
 import torch.nn.functional as F
@@ -17,6 +15,7 @@ from sklearn.linear_model import LogisticRegression
 from torch_geometric.nn import GraphSAGE
 from torch_geometric.loader import LinkNeighborLoader
 from sklearn.multiclass import OneVsRestClassifier
+from torch_geometric.nn import SAGEConv
 
 from sklearn.model_selection import StratifiedKFold, KFold, cross_validate
 
@@ -53,6 +52,32 @@ def train(model, device, train_loader, optimizer, number_nodes):
     return total_loss / number_nodes
 
 
+# ---- GraphSAGE model  ----
+
+class GraphSAGE_local(torch.nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_channels, dropout, aggr, normalize, activation_function, bias):
+
+        super().__init__()
+        # as K = 2, we have 2 layers
+        self.dropout = dropout
+        self.conv1 = SAGEConv(in_channels, out_channels = hidden_channels, project = activation_function, bias = bias, aggr=aggr)
+        self.conv2 = SAGEConv(hidden_channels, out_channels = out_channels, project = activation_function, bias = bias, aggr=aggr, normalize = normalize)
+    
+
+    def forward(self, matrix_nodes_features, edge_index):
+      # matrix_nodes_features is a matrix from the data where row = nodes, columns = feature
+      # edge_index: This is a tensor that describes the connectivity of the graph. Each column in this matrix represents an edge. The first row contains the indices of the source nodes, and the second row contains the indices of the target nodes.
+    
+        h = self.conv1(matrix_nodes_features, edge_index)
+        h = torch.relu(h)
+        h = F.dropout(h, p=self.dropout, training = self.training)
+
+        h = self.conv2(h, edge_index)
+        h = F.relu(h) 
+        h = F.dropout(h,  p=self.dropout, training = self.training)
+        #h = F.log_softmax(h, dim = 1)
+        return h
+
 # ---- NODE CLASSIFICATION TASK ----
 
 @torch.no_grad()
@@ -81,7 +106,7 @@ def test_node_classification_one_class(embedding_matrix, y):
     return acc, f1_macro, f1_micro
 
 @torch.no_grad()
-def test_node_classification_multi_class(embedding_matrix, y, n_folds=5):
+def test_node_classification(embedding_matrix, y, n_folds=5):
     """ 5-fold multi-label classification using one-vs-rest logistic regression
     Args:
         embedding_matrix: source embeddings of a graph
@@ -103,10 +128,28 @@ def test_link_prediction(embedding_matrix, edge_label_index, y):
 
     kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=123)
     eval_scores = {"acc": "accuracy", "roc_auc": "roc_auc"}
-
+    
     # TODO 
     return 0
 
+""" For local graphsage method 
+def compute_embedding_matrix(
+    data,
+    number_features,
+    number_nodes,
+    batch_size,
+    hidden_layer, 
+    epochs, 
+    neighborhood_1,
+    neighborhood_2,
+    embedding_dimension,
+    learning_rate,
+    dropout_rate,
+    activation_function,
+    aggregator,
+    bias,
+    normalize
+):"""
 
 def compute_embedding_matrix(
     data,
@@ -141,7 +184,19 @@ def compute_embedding_matrix(
     else:
         device = torch.device("cpu")
 
-    # Create model
+    # Create local model
+    """model = GraphSAGE_local(
+        in_channels=number_features,
+        hidden_channels=hidden_layer, 
+        out_channels=embedding_dimension,
+        dropout=dropout_rate,
+        aggr=aggregator,
+        normalize = normalize,
+        activation_function = activation_function,
+        bias=bias,
+    ).to(device)"""
+
+    # Create model from library
     model = GraphSAGE(
         in_channels=number_features,
         hidden_channels=hidden_layer,  # TODO: not sure
@@ -156,19 +211,28 @@ def compute_embedding_matrix(
 
     ).to(device)
 
+
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     times = []
-
-    for epoch in tqdm(range(epochs + 1), desc='Training Progress'):
-        
+    for epoch in range(epochs + 1):
         start = time.time()
         total_loss = train(model, device, train_loader, optimizer, number_nodes)
 
         model.eval()
         embedding_matrix = model(data.x, data.edge_index).to(device)
 
-        print(f"Epoch: {epoch:03d}, Total loss: {total_loss:.4f}, time_taken: {time.time() - start}")
+        # EVALUATE NODE CLASSIFICATION
+        y = data.y
+        acc, f1_macro, f1_micro = test_node_classification_one_class(embedding_matrix, y)
+
+        print('Node classification ')
+        print(
+            f"Epoch: {epoch:03d}, Accuracy: {acc:.4f}, "
+            f"Total loss: {total_loss:.4f}, f1_macro: {f1_macro:.4f}, f1_micro:{f1_micro:.4f}, time_taken: {time.time() - start}"
+        )
+
+        # EVALUATE LINK PREDICTION TODO 
 
         times.append(time.time() - start)
     print(f"Median time per epoch: {torch.tensor(times).median():.4f}s")
