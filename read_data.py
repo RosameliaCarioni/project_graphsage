@@ -24,6 +24,10 @@ def read_dataset_arizona_university(nodes_path, edges_path, groups_path, group_e
     edges = pd.read_csv(edges_path, header=None, names=['id_1', 'id_2'])
     user_group_membership = pd.read_csv(group_edges_path, header=None, names=['id', 'group'])
 
+    # Sort the node pairs and drop duplicates to ensure each edge is unique
+    edges[['id_1', 'id_2']] = np.sort(edges[['id_1', 'id_2']], axis=1)
+    edges = edges.drop_duplicates()
+
     # Create a graph
     graph = nx.Graph()
 
