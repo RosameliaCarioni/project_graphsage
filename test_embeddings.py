@@ -83,6 +83,7 @@ def test_link_prediction_k_fold_validation(embedding, edges, non_edges, k=5):
 
     # Combine edge and non-edge embeddings
     X = np.concatenate([emb_edges, emb_non_edges])
+    print('preparation of data done')
 
     # Initialize KFold
     kf = KFold(n_splits=k, shuffle=True, random_state=42)
@@ -161,13 +162,9 @@ def get_edges_and_non_edges_as_lists(data, directed):
     edges = list(zip(edge_index[0].numpy(), edge_index[1].numpy()))
 
     # Generate a set with all possible combinations of existing edges
-    all_possible_pairs = set(combinations(range(data.num_nodes), 2))
+    all_possible_pairs = set(combinations(range(data.num_nodes), 2))    
 
-    # Get the unique pairs from edges - in case of undirected graphs 
-    if not directed: 
-        unique_edges = list(set(map(lambda e: tuple(sorted(e)), edges)))
-
-    # Set unique_edges based on whether the graph is directed
+    # Set edges_exist based on whether the graph is directed or not
     if directed: 
         # For directed graphs, keep the edge direction
         edges_exist = list(set(edges))
