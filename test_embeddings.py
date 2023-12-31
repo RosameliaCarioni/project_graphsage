@@ -154,15 +154,19 @@ def get_edges_and_non_edges_as_lists(data, directed):
     Returns:
         edges and non_edges in lists of tuples where each element is one node  
     """
+    
+    print('method gets called')
 
     # Get lists of nodes that form an edge
     edge_index = data.edge_index
-
+    print('done with edge_index')
     # make edges a list with 2 elements per entry 
     edges = list(zip(edge_index[0].numpy(), edge_index[1].numpy()))
+    print('done with edges')
 
     # Generate a set with all possible combinations of existing edges
     all_possible_pairs = set(combinations(range(data.num_nodes), 2))    
+    print('done with all_possible_pairs')
 
     # Set edges_exist based on whether the graph is directed or not
     if directed: 
@@ -171,8 +175,10 @@ def get_edges_and_non_edges_as_lists(data, directed):
     else:
         # For undirected graphs, sort the nodes in each edge
         edges_exist = list(set(map(lambda e: tuple(sorted(e)), edges)))
+    print('done with directed/non directed')
 
     # Subtract from all possible pairs, the ones that already exist
     non_edges = list(all_possible_pairs - set(edges_exist))
+    print('done with non_edges')
 
     return edges, non_edges
