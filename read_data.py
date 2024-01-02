@@ -64,6 +64,7 @@ def read_dataset_arizona_university(nodes_path, edges_path, groups_path, group_e
         l = graph.nodes[n].get('y')
         labels.append(l)
 
+    print(labels)
     mlb = MultiLabelBinarizer()
     preprocessed_labels = mlb.fit_transform(labels)
 
