@@ -8,7 +8,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.model_selection import StratifiedKFold, KFold, cross_validate, train_test_split
 from sklearn.metrics import roc_auc_score
-from itertools import combinations
 from torch_geometric.transforms import RandomLinkSplit
 import numpy as np
 from sklearn.metrics import roc_auc_score

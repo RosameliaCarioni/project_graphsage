@@ -1,14 +1,11 @@
-import torch
-from torch_geometric.data import Data
 import pandas as pd
 import networkx as nx
-from torch_geometric.utils.convert import from_networkx
 import numpy as np
 from sklearn.preprocessing import MultiLabelBinarizer
-import torch.nn.functional as F
 
 def read_dataset_arizona_university(nodes_path, edges_path, groups_path, group_edges_path):
-    """Read in the data from the csv files and transform it into networkx object 
+    """Read in the data from the csv files and transform it into networkx object. 
+    The datasets that are read in this method, provide from the webside: http://datasets.syr.edu/pages/datasets.html
 
     Args:
         nodes_path: path to the csv file 
@@ -20,7 +17,7 @@ def read_dataset_arizona_university(nodes_path, edges_path, groups_path, group_e
         graph, labels or classes to the nodes 
     """
     nodes_id = pd.read_csv(nodes_path, header=None, names=['id'])
-    #groups_id = pd.read_csv(groups_path, header=None, names=['group'])
+    groups_id = pd.read_csv(groups_path, header=None, names=['group']) # not used in this work
     edges = pd.read_csv(edges_path, header=None, names=['id_1', 'id_2'])
     user_group_membership = pd.read_csv(group_edges_path, header=None, names=['id', 'group'])
 

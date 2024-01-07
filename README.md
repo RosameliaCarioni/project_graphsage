@@ -31,6 +31,23 @@ To ensure compatibility with macOS's GPU limitations, set the environment variab
 Note: These instructions are tailored for macOS 14.1 - 14.2. Adjustments might be needed for other versions or operating systems.
 
 
-## Structure of the files
+## File Structure Overview
 
+This project's file structure is organized to facilitate understanding and interaction with the various components involved in the machine learning process. Here's the breakdown:
+
+### Python Scripts
+The core methods used throughout the project are encapsulated within `.py` files, each serving a specific purpose:
+
+- `read_data.py`: Handles the information retrieval of files from the [Arizona State University data repository](http://datasets.syr.edu/pages/datasets.html) in order to create graphs. 
+
+- `graph_information.py`: This script is a utility for graph analytics. It visualizes general information about a graph and it's loader (used to sample its neighbors), providing insights into the structure and composition of your networks.
+
+- `test_embeddings.py`: Central to evaluating the performance of the models, this file contains functions for node classification and edge prediction, allowing for the assessment of the embeddings generated.
+
+- `graphsage_calculate_embeddings.py`: This contains the model used to learn and derive the embedding matrix from the datasets. It offers flexibility by allowing the use of a local model (as applied in this study) or the inbuilt GraphSage from `torch_geometric.nn`.
+
+### Jupyter Notebooks
+For a more interactive and exploratory approach, `.ipynb` notebooks are used, particularly for experimenting with the datasets:
+
+- Dataset Notebooks: Each of the datasets employed in this study has an associated notebook. These notebooks are where the data manipulation, experimentation, and initial analysis occur. 
 
