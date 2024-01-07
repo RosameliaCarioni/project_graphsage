@@ -6,7 +6,7 @@ This project implements GraphSage as described in the following papers:
 - "Inductive Representation Learning on Large Graphs" by Hamilton, Ying, and Leskovec.
 
 ## Report
-todo: add link 
+The report can be found [here](https://drive.google.com/file/d/1wePUhghNVeVb9RQ8IXoM2pxRD2x1co0I/view?usp=drive_link)  
 
 ## Installing steps for requirements on a MACOS 14.1 - 14.2 
 These steps are based on the solution provided in [this issue](https://github.com/rusty1s/pytorch_scatter/issues/241).
