@@ -52,4 +52,4 @@ For a more interactive and exploratory approach, `.ipynb` notebooks are used, pa
 - Dataset Notebooks: Each of the datasets employed in this study has an associated notebook. These notebooks are where the data manipulation, experimentation, and initial analysis occur. 
 
 ### Files under `not_used` folder 
-These files can be ignored. They were used in order to obtain my current code. I need to go over them and remove what is not needed. 
+These files can be ignored. They were used in order to obtain my current code. 
