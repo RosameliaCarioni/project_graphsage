@@ -125,7 +125,6 @@ def compute_embedding_matrix(
 
 
     # Create local model 
-    """
     model = GraphSAGE_local(
         in_channels=number_features,
         hidden_channels=hidden_layer, 
@@ -136,9 +135,10 @@ def compute_embedding_matrix(
         activation_function = activation_function,
         bias=bias,
     ).to(device)
-    """ 
+    
 
-    # Create model from libary 
+    # Create model from libary - this was used to compare results 
+    """
     model = GraphSAGE(
         in_channels=number_features,
         hidden_channels=hidden_layer, 
@@ -151,9 +151,8 @@ def compute_embedding_matrix(
         bias=bias,
         normalize = normalize,
         project = project
-
     ).to(device) 
-
+    """
     
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
